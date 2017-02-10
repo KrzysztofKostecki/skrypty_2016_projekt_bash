@@ -1,0 +1,47 @@
+#!/bin/bash
+function fis_bgrun_wait {
+    wait
+}
+
+
+
+grupa=$1
+while read -r LINE || [[ -n $LINE ]]; do
+      let maxjobs=LINE
+      read -r LINE
+      let count=LINE
+done < $grupa
+  shift
+todo_array5=()
+  while [ $count -gt 0 ] ; do
+      #echo todo_array5 = ${#todo_array5[@]}
+      #echo count = $count
+      #tablica przechowuje PID aktualnie uruchomionych procesów
+      while read -r LINE || [[ -n $LINE ]]; do
+        let maxjobs=LINE
+        read -r LINE
+        let count=LINE
+      done < $grupa
+      if [ ${#todo_array5[@]} -lt $maxjobs ] ; then
+          $@ > /dev/null & todo_array5=(${todo_array5[@]} $!)
+          let count--
+      fi
+      for i in "${todo_array5[@]}"; do
+          #sprawdzamy czy dany proces jest uruchomiony
+          if ! ps -p $i > /dev/null ; then 
+                  #jeśli nie jest uruchomiony zwalniamy miejsce w tablicy
+                  index=0
+                  for keyword in ${todo_array5[@]}; do
+                  
+                        if [ "$keyword" = "$i" ]; then
+                             unset todo_array5[$index]
+                             break
+                        fi
+                        let index++
+                       
+                  done
+                  
+          fi
+      done
+  done
+  fis_bgrun_wait

@@ -1,0 +1,94 @@
+#!/bin/bash
+function fis_brgun_group {
+  while getopts "g:n:" opt; do
+      case $opt in
+        g)
+          grupa=$OPTARG
+          while read -r LINE || [[ -n $LINE ]]; do
+            let maxjobs=LINE
+            read -r LINE
+            let count=LINE
+          done < $grupa
+          ;;
+        n)
+          let maxjobs=$OPTARG
+        ;;
+        \?)
+          echo "Invalid option: -$OPTARG" >&2
+          exit 1
+          ;;
+        :)
+          echo "Option -$OPTARG requires an argument." >&2
+          exit 1
+          ;;
+      esac
+done
+
+printf "$maxjobs\n$count" > $grupa
+}
+
+function fis_group {
+  printf "$2\n$3" > $1
+  echo Nowa grupa: $1
+  echo Wielkosc bufora: $2 Wielkosc grupy: $3 
+}
+
+function fis_bgrun_wait {
+    wait
+}
+
+
+function fis_bgrun {
+    grupa=$1
+while read -r LINE || [[ -n $LINE ]]; do
+      let maxjobs=LINE
+      read -r LINE
+      let count=LINE
+done < $grupa
+  shift
+todo_array5=()
+  while [ $count -gt 0 ] ; do
+      #echo todo_array5 = ${#todo_array5[@]}
+      #echo count = $count
+      #tablica przechowuje PID aktualnie uruchomionych procesów
+      while read -r LINE || [[ -n $LINE ]]; do
+        let maxjobs=LINE
+        read -r LINE
+      done < $grupa
+      if [ ${#todo_array5[@]} -lt $maxjobs ] ; then
+          $@ > /dev/null & todo_array5=(${todo_array5[@]} $!)
+          let count--
+      fi
+      for i in "${todo_array5[@]}"; do
+          #sprawdzamy czy dany proces jest uruchomiony
+          if ! ps -p $i > /dev/null ; then 
+                  #jeśli nie jest uruchomiony zwalniamy miejsce w tablicy
+                  index=0
+                  for keyword in ${todo_array5[@]}; do
+                  
+                        if [ "$keyword" = "$i" ]; then
+                             unset todo_array5[$index]
+                             break
+                        fi
+                        let index++
+                       
+                  done
+                  
+          fi
+      done
+  done
+  fis_bgrun_wait
+
+}
+
+function fis_bgrun_test {
+#tworzymy nową grupe z buforem 5 i ilością wywołań 100
+fis_group NowaGrupa 2 100
+#uruchamiamy procesy w tle z parametramy grupy
+fis_bgrun NowaGrupa ping google.com -c 2 &
+#czekamy 10 sek
+sleep 10
+#zmieniamy wielkość bufora w trakcie działania skryptu
+fis_brgun_group -g NowaGrupa -n 5
+}
+
